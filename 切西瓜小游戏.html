@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>切西瓜小游戏</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+      background: radial-gradient(circle at 50% 20%, #213d2d 0%, #0d1913 46%, #050807 100%);
+      color: #fff;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 42px 42px;
+      pointer-events: none;
+    }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .hud {
+      position: fixed;
+      z-index: 10;
+      top: 22px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      pointer-events: none;
+    }
+
+    .panel {
+      min-width: 132px;
+      padding: 12px 16px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 18px;
+      background: rgba(0, 0, 0, .28);
+      box-shadow: 0 18px 45px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.12);
+      backdrop-filter: blur(12px);
+    }
+
+    .label {
+      font-size: 12px;
+      opacity: .7;
+      letter-spacing: 2px;
+    }
+
+    .value {
+      margin-top: 2px;
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1;
+      color: #ffec99;
+      text-shadow: 0 3px 0 rgba(0,0,0,.35);
+    }
+
+    .center-title {
+      text-align: center;
+      padding: 10px 18px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .1);
+      border: 1px solid rgba(255,255,255,.15);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+      backdrop-filter: blur(12px);
+      font-weight: 800;
+      letter-spacing: 3px;
+      text-shadow: 0 3px 12px rgba(0,0,0,.5);
+    }
+
+    .overlay {
+      position: fixed;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: radial-gradient(circle at 50% 35%, rgba(23, 79, 52, .42), rgba(0,0,0,.72));
+      transition: opacity .25s ease, visibility .25s ease;
+    }
+
+    .overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .card {
+      width: min(520px, 92vw);
+      padding: 34px 30px;
+      border-radius: 30px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,.22);
+      background: linear-gradient(145deg, rgba(20, 52, 35, .92), rgba(8, 20, 15, .92));
+      box-shadow: 0 28px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12);
+    }
+
+    .card h1 {
+      font-size: clamp(34px, 8vw, 58px);
+      margin-bottom: 10px;
+      letter-spacing: 2px;
+      color: #fff7c0;
+      text-shadow: 0 5px 0 rgba(0,0,0,.3), 0 0 24px rgba(255,216,92,.28);
+    }
+
+    .card p {
+      color: rgba(255,255,255,.78);
+      line-height: 1.8;
+      margin: 10px auto 22px;
+      max-width: 390px;
+    }
+
+    .button {
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 34px;
+      font-size: 18px;
+      font-weight: 800;
+      color: #172116;
+      cursor: pointer;
+      background: linear-gradient(180deg, #fff07a, #ffb22b);
+      box-shadow: 0 12px 0 #9b5515, 0 22px 42px rgba(0,0,0,.38);
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+
+    .button:active {
+      transform: translateY(7px);
+      box-shadow: 0 5px 0 #9b5515, 0 13px 26px rgba(0,0,0,.35);
+    }
+
+    .tips {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 22px;
+      color: rgba(255,255,255,.58);
+      font-size: 13px;
+    }
+
+    .pill {
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+
+    .floating-text {
+      position: fixed;
+      z-index: 12;
+      pointer-events: none;
+      font-weight: 900;
+      font-size: 28px;
+      color: #fff27d;
+      text-shadow: 0 4px 0 rgba(0,0,0,.45);
+      animation: floatUp .8s ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      from {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(.8);
+      }
+      to {
+        opacity: 0;
+        transform: translate(-50%, -125%) scale(1.35);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .hud {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        align-items: flex-start;
+      }
+
+      .panel {
+        min-width: 96px;
+        padding: 10px 12px;
+      }
+
+      .value {
+        font-size: 24px;
+      }
+
+      .center-title {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <div class="panel">
+      <div class="label">得分</div>
+      <div class="value" id="score">0</div>
+    </div>
+    <div class="center-title">划过水果，避开炸弹</div>
+    <div class="panel">
+      <div class="label">时间</div>
+      <div class="value" id="time">60</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="card">
+      <h1 id="title">切西瓜</h1>
+      <p id="message">按住鼠标或用手指滑动，切开飞出的水果。连续切中会有连击加分，切到炸弹会扣分并震屏。</p>
+      <button class="button" id="startBtn">开始游戏</button>
+      <div class="tips">
+        <span class="pill">鼠标拖动</span>
+        <span class="pill">触屏滑动</span>
+        <span class="pill">60 秒挑战</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const timeEl = document.getElementById("time");
+    const overlay = document.getElementById("overlay");
+    const titleEl = document.getElementById("title");
+    const messageEl = document.getElementById("message");
+    const startBtn = document.getElementById("startBtn");
+
+    let width = 0;
+    let height = 0;
+    let dpr = 1;
+    let score = 0;
+    let timeLeft = 60;
+    let running = false;
+    let lastTime = 0;
+    let spawnTimer = 0;
+    let combo = 0;
+    let comboTimer = 0;
+    let screenShake = 0;
+    let objects = [];
+    let particles = [];
+    let slashPoints = [];
+    let isPointerDown = false;
+    let gameTimer = null;
+
+    const fruitTypes = [
+      { name: "西瓜", emoji: "🍉", color: "#ff4f64", juice: "#ff3457", radius: 44 },
+      { name: "橙子", emoji: "🍊", color: "#ff9b28", juice: "#ffb13b", radius: 36 },
+      { name: "苹果", emoji: "🍎", color: "#e94343", juice: "#ff5959", radius: 34 },
+      { name: "柠檬", emoji: "🍋", color: "#ffe150", juice: "#fff176", radius: 34 },
+      { name: "猕猴桃", emoji: "🥝", color: "#86c64a", juice: "#a4ef61", radius: 33 },
+      { name: "草莓", emoji: "🍓", color: "#f04464", juice: "#ff6a80", radius: 31 }
+    ];
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function startGame() {
+      score = 0;
+      timeLeft = 60;
+      combo = 0;
+      comboTimer = 0;
+      objects = [];
+      particles = [];
+      slashPoints = [];
+      running = true;
+      lastTime = performance.now();
+      spawnTimer = 0;
+      scoreEl.textContent = score;
+      timeEl.textContent = timeLeft;
+      overlay.classList.add("hidden");
+      clearInterval(gameTimer);
+      gameTimer = setInterval(() => {
+        if (!running) return;
+        timeLeft -= 1;
+        timeEl.textContent = timeLeft;
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+      requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      running = false;
+      clearInterval(gameTimer);
+      titleEl.textContent = "游戏结束";
+      messageEl.innerHTML = `你的最终得分是 <strong style="color:#fff27d;font-size:1.35em;">${score}</strong> 分。<br>再来一局，试试更高连击吧。`;
+      startBtn.textContent = "再玩一次";
+      setTimeout(() => overlay.classList.remove("hidden"), 350);
+    }
+
+    function spawnObject() {
+      const isBomb = Math.random() < 0.14;
+      const fruit = fruitTypes[Math.floor(Math.random() * fruitTypes.length)];
+      const radius = isBomb ? 34 : fruit.radius;
+      const x = rand(radius + 20, width - radius - 20);
+      const peak = rand(height * 0.18, height * 0.44);
+      const vy = -Math.sqrt(2 * 980 * (height - peak));
+      const vx = (width / 2 - x) * rand(0.35, 0.75);
+      objects.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2),
+        x,
+        y: height + radius + 20,
+        vx,
+        vy,
+        gravity: 980,
+        radius,
+        rotation: rand(-0.8, 0.8),
+        spin: rand(-4.5, 4.5),
+        sliced: false,
+        isBomb,
+        fruit,
+        half: false
+      });
+    }
+
+    function drawFruit(obj) {
+      ctx.save();
+      ctx.translate(obj.x, obj.y);
+      ctx.rotate(obj.rotation);
+
+      if (obj.isBomb) {
+        const gradient = ctx.createRadialGradient(-10, -12, 5, 0, 0, obj.radius);
+        gradient.addColorStop(0, "#5a6670");
+        gradient.addColorStop(0.45, "#222831");
+        gradient.addColorStop(1, "#050608");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, obj.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#87919a";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = "#ffca3a";
+        ctx.beginPath();
+        ctx.arc(15, -20, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#5a3312";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(18, -27);
+        ctx.quadraticCurveTo(30, -42, 43, -32);
+        ctx.stroke();
+        ctx.fillStyle = "#ffef8a";
+        ctx.font = "26px serif";
+        ctx.fillText("✦", 35, -33);
+      } else {
+        ctx.shadowColor = "rgba(0,0,0,.35)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 8;
+        ctx.font = `${obj.radius * 1.72}px serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(obj.fruit.emoji, 0, 3);
+      }
+
+      ctx.restore();
+    }
+
+    function drawParticles(dt) {
+      particles.forEach(p => {
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 600 * dt;
+        p.rotation += p.spin * dt;
+      });
+      particles = particles.filter(p => p.life > 0);
+
+      for (const p of particles) {
+        const alpha = clamp(p.life / p.maxLife, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation);
+        if (p.type === "juice") {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.size * 1.5, p.size, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (p.type === "spark") {
+          ctx.fillStyle = p.color;
+          ctx.font = `${p.size}px serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(p.text, 0, 0);
+        } else {
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    function burst(obj) {
+      const color = obj.isBomb ? "#ffbc42" : obj.fruit.juice;
+      const count = obj.isBomb ? 34 : 26;
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: obj.x + rand(-10, 10),
+          y: obj.y + rand(-10, 10),
+          vx: rand(-430, 430),
+          vy: rand(-520, 120),
+          size: rand(3, obj.isBomb ? 8 : 11),
+          color,
+          life: rand(.38, .9),
+          maxLife: .9,
+          rotation: rand(0, Math.PI * 2),
+          spin: rand(-7, 7),
+          type: obj.isBomb ? "dot" : "juice"
+        });
+      }
+
+      if (!obj.isBomb) {
+        for (let i = 0; i < 2; i++) {
+          particles.push({
+            x: obj.x + (i === 0 ? -22 : 22),
+            y: obj.y,
+            vx: i === 0 ? rand(-260, -120) : rand(120, 260),
+            vy: rand(-260, -80),
+            size: obj.radius * 1.3,
+            color: "#fff",
+            text: obj.fruit.emoji,
+            life: .75,
+            maxLife: .75,
+            rotation: rand(-.8, .8),
+            spin: rand(-5, 5),
+            type: "spark"
+          });
+        }
+      }
+    }
+
+    function addFloatingText(text, x, y, danger = false) {
+      const el = document.createElement("div");
+      el.className = "floating-text";
+      el.textContent = text;
+      el.style.left = x + "px";
+      el.style.top = y + "px";
+      el.style.color = danger ? "#ff6868" : "#fff27d";
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 820);
+    }
+
+    function sliceObject(obj) {
+      if (obj.sliced) return;
+      obj.sliced = true;
+      burst(obj);
+
+      if (obj.isBomb) {
+        score = Math.max(0, score - 20);
+        combo = 0;
+        screenShake = 18;
+        addFloatingText("-20", obj.x, obj.y, true);
+      } else {
+        combo = comboTimer > 0 ? combo + 1 : 1;
+        comboTimer = 1.25;
+        const points = 10 + Math.max(0, combo - 1) * 3;
+        score += points;
+        addFloatingText(combo >= 3 ? `连击 x${combo} +${points}` : `+${points}`, obj.x, obj.y);
+      }
+
+      scoreEl.textContent = score;
+    }
+
+    function updateObjects(dt) {
+      spawnTimer -= dt;
+      const interval = Math.max(.28, .82 - score / 850);
+      if (spawnTimer <= 0) {
+        const batch = Math.random() < .22 ? 2 : 1;
+        for (let i = 0; i < batch; i++) spawnObject();
+        spawnTimer = interval;
+      }
+
+      comboTimer = Math.max(0, comboTimer - dt);
+      if (comboTimer <= 0) combo = 0;
+      screenShake = Math.max(0, screenShake - 52 * dt);
+
+      for (const obj of objects) {
+        obj.x += obj.vx * dt;
+        obj.y += obj.vy * dt;
+        obj.vy += obj.gravity * dt;
+        obj.rotation += obj.spin * dt;
+      }
+
+      objects = objects.filter(obj => obj.y < height + obj.radius + 120 && !obj.sliced);
+    }
+
+    function drawSlash() {
+      const now = performance.now();
+      slashPoints = slashPoints.filter(p => now - p.t < 180);
+      if (slashPoints.length < 2) return;
+
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      for (let i = 1; i < slashPoints.length; i++) {
+        const a = slashPoints[i - 1];
+        const b = slashPoints[i];
+        const alpha = 1 - (now - b.t) / 180;
+        ctx.strokeStyle = `rgba(255, 247, 152, ${alpha})`;
+        ctx.lineWidth = 18 * alpha + 2;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.lineWidth = 5 * alpha + 1;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawBackground() {
+      const gradient = ctx.createRadialGradient(width * .5, height * .22, 0, width * .5, height * .32, Math.max(width, height));
+      gradient.addColorStop(0, "#214c34");
+      gradient.addColorStop(.5, "#102219");
+      gradient.addColorStop(1, "#050807");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.globalAlpha = .13;
+      ctx.strokeStyle = "#fff";
+      for (let x = 0; x < width; x += 42) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += 42) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function loop(now) {
+      if (!running) return;
+      const dt = Math.min((now - lastTime) / 1000, .033);
+      lastTime = now;
+
+      updateObjects(dt);
+      drawBackground();
+
+      ctx.save();
+      if (screenShake > 0) {
+        ctx.translate(rand(-screenShake, screenShake), rand(-screenShake, screenShake));
+      }
+
+      for (const obj of objects) drawFruit(obj);
+      drawParticles(dt);
+      ctx.restore();
+      drawSlash();
+
+      requestAnimationFrame(loop);
+    }
+
+    function handlePointer(x, y) {
+      if (!running) return;
+      const now = performance.now();
+      const previous = slashPoints[slashPoints.length - 1];
+      slashPoints.push({ x, y, t: now });
+
+      if (!previous) return;
+
+      for (const obj of objects) {
+        const distance = distancePointToSegment(obj.x, obj.y, previous.x, previous.y, x, y);
+        if (distance <= obj.radius * 1.08) {
+          sliceObject(obj);
+        }
+      }
+    }
+
+    function distancePointToSegment(px, py, ax, ay, bx, by) {
+      const dx = bx - ax;
+      const dy = by - ay;
+      if (dx === 0 && dy === 0) return Math.hypot(px - ax, py - ay);
+      const t = clamp(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy), 0, 1);
+      const cx = ax + t * dx;
+      const cy = ay + t * dy;
+      return Math.hypot(px - cx, py - cy);
+    }
+
+    function pointerPosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      const point = event.touches ? event.touches[0] : event;
+      return {
+        x: point.clientX - rect.left,
+        y: point.clientY - rect.top
+      };
+    }
+
+    canvas.addEventListener("pointerdown", event => {
+      isPointerDown = true;
+      slashPoints = [];
+      handlePointer(event.clientX, event.clientY);
+    });
+
+    canvas.addEventListener("pointermove", event => {
+      if (!isPointerDown) return;
+      handlePointer(event.clientX, event.clientY);
+    });
+
+    window.addEventListener("pointerup", () => {
+      isPointerDown = false;
+    });
+
+    canvas.addEventListener("touchstart", event => {
+      event.preventDefault();
+      isPointerDown = true;
+      slashPoints = [];
+      const p = pointerPosition(event);
+      handlePointer(p.x, p.y);
+    }, { passive: false });
+
+    canvas.addEventListener("touchmove", event => {
+      event.preventDefault();
+      if (!isPointerDown) return;
+      const p = pointerPosition(event);
+      handlePointer(p.x, p.y);
+    }, { passive: false });
+
+    window.addEventListener("touchend", () => {
+      isPointerDown = false;
+    });
+
+    startBtn.addEventListener("click", startGame);
+    window.addEventListener("resize", resize);
+    resize();
+    drawBackground();
+  </script>
+</body>
+</html>
